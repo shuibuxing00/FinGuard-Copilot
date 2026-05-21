@@ -1,0 +1,37 @@
+# Personal Information Protection Laws (PIPL)
+
+## Section 1: Personal Information Definition
+Personal information refers to all kinds of information, recorded in electronic or other form, concerning an identified or identifiable individual.
+
+## Section 2: Collection and Use Consent
+Organizations must obtain prior consent before collecting personal information, except in specific circumstances such as performance of contracts or legal obligations.
+
+## Section 3: Data Minimization
+Organizations must only collect and use personal information necessary for legitimate purposes. Excessive collection is prohibited.
+
+## Section 4: Accuracy and Timeliness
+Organizations must ensure personal information is accurate and kept up to date. Inaccurate information must be corrected promptly.
+
+## Section 5: Security Protection
+Organizations must implement appropriate technical and organizational measures to protect personal information from unauthorized access, disclosure, or alteration.
+
+## Section 6: Retention Limitations
+Personal information must not be kept longer than necessary for its stated purposes. Retention periods must be clearly defined.
+
+## Section 7: Cross-Border Transfers
+Transfer of personal information across borders requires explicit consent and assessment of recipient country protection level.
+
+## Section 8: Individual Rights
+Individuals have rights to access, correct, delete, and port their personal information. Organizations must establish mechanisms to facilitate these rights.
+
+## Section 9: Data Breach Notification
+In case of unauthorized access or disclosure, individuals and regulators must be notified without undue delay.
+
+## Section 10: Privacy Impact Assessment
+Organizations handling large-scale personal information must conduct privacy impact assessments before deployment of new systems.
+
+## Section 11: Automated Processing
+Automated decision-making that significantly affects individuals' rights requires human review and appeal mechanisms.
+
+## Section 12: Third-Party Processing
+Processors of personal information must implement appropriate protections equivalent to those of the data controller.

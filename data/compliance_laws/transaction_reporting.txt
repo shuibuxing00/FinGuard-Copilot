@@ -1,0 +1,43 @@
+# Transaction Reporting and Monitoring Rules
+
+## Section 1: Reportable Transaction Threshold
+All transactions exceeding the established threshold must be reported to relevant authorities. Thresholds are set based on transaction type and risk profile.
+
+## Section 2: Real-Time Monitoring
+Financial institutions must implement real-time transaction monitoring systems to detect suspicious patterns and anomalies.
+
+## Section 3: Periodic Reporting
+In addition to real-time alerts, comprehensive transaction reports must be submitted at defined intervals (daily, weekly, monthly).
+
+## Section 4: Transaction Description
+Each reportable transaction must include: parties involved, amounts, dates, methods, and any relevant business context.
+
+## Section 5: Anomalous Transaction Detection
+Transactions that deviate significantly from customer's normal patterns require additional review and documentation.
+
+## Section 6: Velocity Rules
+Multiple transactions in rapid succession to different beneficiaries may indicate structuring and must be flagged for review.
+
+## Section 7: Geographic Risk Assessment
+Transactions involving high-risk jurisdictions must be subject to enhanced monitoring and documentation requirements.
+
+## Section 8: New Recipient Transactions
+Payments to new or previously unverified recipients must undergo additional verification and may require higher approval levels.
+
+## Section 9: Round-Amount Transactions
+Large round-amount transactions (e.g., exact multiples of 10,000) may indicate deliberate structuring and require scrutiny.
+
+## Section 10: Unusual Timing Patterns
+Transactions occurring outside normal business hours or with unusual frequency patterns require investigation.
+
+## Section 11: Business Context Verification
+Transaction purpose must be verified against customer's declared business nature and historical patterns.
+
+## Section 12: Reporting Timeline
+Reportable transactions must be reported within defined timeframes (typically within 48-72 hours of detection).
+
+## Section 13: Remediation Actions
+When suspicious transactions are identified, appropriate remediation such as transaction blocking or customer notification may be required.
+
+## Section 14: Compliance Audit Trail
+All monitoring decisions and remediation actions must be documented with timestamps and audit trails for regulatory review.

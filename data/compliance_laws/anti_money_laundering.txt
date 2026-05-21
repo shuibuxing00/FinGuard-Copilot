@@ -1,0 +1,31 @@
+# Anti-Money Laundering Regulations
+
+## Section 1: Customer Identification Program (CIP)
+Financial institutions must establish, implement, and maintain written CIP procedures. These procedures must enable the institution to form a reasonable belief that it knows the true identity of each customer.
+
+## Section 2: Large Transaction Reporting
+Transactions in currency aggregating more than $10,000 must be reported. Structuring transactions to evade reporting obligations is prohibited and constitutes money laundering.
+
+## Section 3: Suspicious Activity Detection
+Institutions must establish risk-based procedures to detect and report transactions that may indicate potential money laundering, terrorist financing, or other illegal activities.
+
+## Section 4: Currency Transaction Reports (CTR)
+Each transaction in currency of more than $10,000 must be reported. Multiple transactions must not be aggregated to avoid reporting.
+
+## Section 5: Enhanced Due Diligence (EDD)
+For customers identified as higher risk, enhanced due diligence must be conducted including background checks and ongoing monitoring of transactions.
+
+## Section 6: Beneficial Ownership Verification
+Institutions must verify the beneficial ownership of business accounts and maintain records of such verification.
+
+## Section 7: Sanctions Compliance
+Transactions with entities on government sanction lists are prohibited. Institutions must maintain comprehensive sanctions screening procedures.
+
+## Section 8: Record Retention
+All transaction records, customer identification information, and suspicious activity reports must be retained for minimum 5 years.
+
+## Section 9: Rapid Fund Movements
+Multiple transfers of funds within short time periods to different accounts or jurisdictions may indicate structuring or money laundering.
+
+## Section 10: Unusual Geographic Patterns
+Transactions with unusual geographic patterns, particularly involving high-risk jurisdictions, require enhanced scrutiny and documentation.
