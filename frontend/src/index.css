@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.locked-cell {
+  @apply bg-zinc-800/80 text-zinc-500 relative cursor-not-allowed select-none;
+}
+
+.stat-card {
+  @apply flex-1 min-w-[200px] rounded-xl p-5 border border-[#30363d] shadow-lg;
+}
+
+.stat-card-high-risk {
+  background: linear-gradient(135deg, #3d1515 0%, #1a0a0a 100%);
+}
+
+.stat-card-velocity {
+  background: linear-gradient(135deg, #3d2e15 0%, #1a1408 100%);
+}
+
+.stat-card-location {
+  background: linear-gradient(135deg, #153d2e 0%, #081a14 100%);
+}

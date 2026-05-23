@@ -4,6 +4,7 @@ Creates realistic test data with anomaly patterns.
 Synthetic data only - no real user information.
 """
 
+import hashlib
 import random
 import pandas as pd
 from datetime import datetime, timedelta
@@ -69,7 +70,12 @@ def _generate_users(n_users: int, anonymizer: Anonymizer) -> pd.DataFrame:
             'account_age_days': random.randint(30, 3650),
             'total_transactions': random.randint(10, 500),
             'verification_status': random.choice(['verified', 'unverified']),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.utcnow().isoformat(),
+            # Restricted-tier fields (admin only via RBAC)
+            'email': f"user{i:03d}@synthetic-bank.demo",
+            'phone': f"+1-555-{random.randint(100,999):03d}-{random.randint(1000,9999):04d}",
+            'account_number': f"ACCT-{random.randint(10000000, 99999999)}",
+            'metadata': f'{{"segment":"{account_type}","kyc":"{risk_profile}"}}',
         }
         
         users.append(user)
@@ -134,17 +140,19 @@ def _generate_transactions(
         
         timestamp = base_time - timedelta(days=random.randint(0, 30), hours=hour)
         
+        txn_id = f"TXN_{i:06d}"
         transaction = {
-            'transaction_id': f"TXN_{i:06d}",
+            'transaction_id': txn_id,
+            'transaction_hash': hashlib.sha256(txn_id.encode()).hexdigest()[:16],
             'user_id': user_id,
             'recipient_id': recipient_id,
             'amount': amount,
             'timestamp': timestamp.isoformat(),
             'transaction_type': random.choice(['transfer', 'withdrawal', 'deposit']),
-            'status': random.choice(['completed', 'pending']),
+            'status': random.choice(['completed', 'pending', 'flagged']),
             'anomaly_type': anomaly_type or '',
             'risk_score': min(risk_score, 100),
-            'violation_flags': _generate_violation_flags(anomaly_type)
+            'violation_flags': _generate_violation_flags(anomaly_type),
         }
         
         transactions.append(transaction)

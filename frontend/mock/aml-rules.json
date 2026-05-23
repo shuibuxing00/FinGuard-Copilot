@@ -1,0 +1,50 @@
+{
+  "rules": [
+    {
+      "id": "R001",
+      "name": "High-Frequency Burst",
+      "condition": "time_velocity >= 3 AND amount > 500",
+      "fields_used": ["time_velocity", "amount"],
+      "action": "Increase risk_score by 25; set anomaly_type to short_time_high_freq; alert review",
+      "analyst_display": "Show as amber badge in Velocity column; tooltip lists hourly txn count"
+    },
+    {
+      "id": "R002",
+      "name": "New Device High Value",
+      "condition": "device_new = true AND amount >= 3000",
+      "fields_used": ["device_id", "amount"],
+      "action": "Set anomaly_type to new_device; increase risk_score to min(score+30, 100); alert review",
+      "analyst_display": "Highlight device_id cell; link to device onboarding audit log"
+    },
+    {
+      "id": "R003",
+      "name": "Location Mismatch",
+      "condition": "location_consistency = 0",
+      "fields_used": ["location_consistency", "location"],
+      "action": "Set anomaly_type to location_mismatch; increase risk_score by 20; flag for geo review",
+      "analyst_display": "Red pin icon on Location column; show usual vs current city in expander"
+    },
+    {
+      "id": "R004",
+      "name": "Amount Peak Outlier",
+      "condition": "amount > user_p95_baseline * 5",
+      "fields_used": ["amount", "user_id"],
+      "action": "Set anomaly_type to amount_peak; increase risk_score by 15; queue enhanced due diligence",
+      "analyst_display": "Bold amount with ↑ indicator; sidebar shows baseline comparison"
+    },
+    {
+      "id": "R005",
+      "name": "Compound Risk Escalation",
+      "condition": "time_velocity >= 3 AND location_consistency = 0",
+      "fields_used": ["time_velocity", "location_consistency"],
+      "action": "Force risk_score >= 80; merge explanations; immediate alert to auditor role",
+      "analyst_display": "Full-row red tint; pinned to top of analyst queue with COMPOUND tag"
+    }
+  ],
+  "analyst_ui_notes": {
+    "layout": "Rules panel as collapsible card above transaction table (read-only for analyst)",
+    "columns_visible": ["Rule name", "Condition (plain English)", "Action"],
+    "hidden_from_analyst": ["internal rule id", "raw SQL"],
+    "interaction": "Hover rule row to highlight matching transactions in table"
+  }
+}
