@@ -16,7 +16,7 @@ def render_dashboard(transactions_df: Optional[pd.DataFrame] = None) -> None:
         transactions_df: Transactions dataframe for analysis
     """
     try:
-        st.markdown("### 📊 Compliance Dashboard")
+        st.markdown("### Compliance Dashboard")
         
         if transactions_df is None or transactions_df.empty:
             st.info("No transaction data available for analysis.")
@@ -30,28 +30,28 @@ def render_dashboard(transactions_df: Optional[pd.DataFrame] = None) -> None:
         
         with col1:
             st.metric(
-                "🚨 High Risk",
+                "High Risk",
                 metrics['high_risk_count'],
                 f"{metrics['high_risk_pct']:.1f}%"
             )
         
         with col2:
             st.metric(
-                "💰 Total Volume",
+                "Total Volume",
                 f"${metrics['total_volume']:,.0f}",
                 f"{metrics['avg_amount']:.0f} avg"
             )
         
         with col3:
             st.metric(
-                "🔧 Anomalous Devices",
+                "Unique Devices",
                 metrics['device_anomalies'],
-                f"New devices"
+                "in dataset"
             )
         
         with col4:
             st.metric(
-                "⚠️ Rules Triggered",
+                "Rules Triggered",
                 metrics['rules_triggered'],
                 f"{metrics['avg_violations']:.1f} avg"
             )

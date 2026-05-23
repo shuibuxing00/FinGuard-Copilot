@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fund Flow Network — ECharts</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    body { margin: 0; background: #0e1117; color: #e6edf3; font-family: system-ui, sans-serif; }
+    h1 { text-align: center; padding: 1rem; font-size: 1.25rem; }
+    #chart { width: 100%; height: 520px; }
+  </style>
+</head>
+<body>
+  <h1>Fund Flow Network (ECharts) — Hover nodes &amp; edges for details</h1>
+  <div id="chart"></div>
+  <script>
+    const transactions = [
+      { user_id: 'u_1024', counterparty_id: 'u_1003', amount: 4800, risk_score: 92, anomaly_type: 'short_time_high_freq' },
+      { user_id: 'u_1024', counterparty_id: 'u_1007', amount: 3200, risk_score: 88, anomaly_type: 'short_time_high_freq' },
+      { user_id: 'u_1024', counterparty_id: 'u_1010', amount: 4800, risk_score: 94, anomaly_type: 'new_device' },
+      { user_id: 'u_1024', counterparty_id: 'u_1002', amount: 3200, risk_score: 90, anomaly_type: 'short_time_high_freq' },
+      { user_id: 'u_1015', counterparty_id: 'u_1002', amount: 15600, risk_score: 85, anomaly_type: 'amount_peak' },
+      { user_id: 'u_1018', counterparty_id: 'u_1005', amount: 12500, risk_score: 87, anomaly_type: 'location_mismatch' },
+      { user_id: 'u_1001', counterparty_id: 'u_1005', amount: 245.5, risk_score: 22, anomaly_type: '' },
+      { user_id: 'u_1002', counterparty_id: 'u_1008', amount: 1200, risk_score: 45, anomaly_type: '' },
+      { user_id: 'u_1007', counterparty_id: 'u_1003', amount: 2200, risk_score: 72, anomaly_type: 'location_mismatch' },
+    ];
+
+    const nodeMap = {};
+    const edgeMap = {};
+
+    transactions.forEach(t => {
+      const from = t.user_id;
+      const to = t.counterparty_id;
+      if (!nodeMap[from]) nodeMap[from] = { riskScores: [], anomalyCount: 0 };
+      nodeMap[from].riskScores.push(t.risk_score);
+      if (t.anomaly_type) nodeMap[from].anomalyCount++;
+      if (!nodeMap[to]) nodeMap[to] = { riskScores: [0], anomalyCount: 0 };
+      const key = from + '->' + to;
+      if (!edgeMap[key]) edgeMap[key] = { from, to, amount: 0, count: 0 };
+      edgeMap[key].amount += t.amount;
+      edgeMap[key].count++;
+    });
+
+    const nodes = Object.entries(nodeMap).map(([id, m]) => {
+      const maxRisk = Math.max(...m.riskScores);
+      const high = maxRisk >= 80;
+      return {
+        id, name: id, maxRisk, anomalyCount: m.anomalyCount,
+        symbolSize: high ? 44 : 30,
+        itemStyle: { color: high ? '#ef4444' : '#3b82f6' },
+      };
+    });
+
+    const links = Object.values(edgeMap).map(e => ({
+      source: e.from, target: e.to, value: e.amount, count: e.count,
+      lineStyle: { width: Math.min(8, 1 + e.count), curveness: 0.25 },
+    }));
+
+    const chart = echarts.init(document.getElementById('chart'), 'dark');
+    chart.setOption({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        formatter(p) {
+          if (p.dataType === 'node') {
+            return '<b>' + p.data.name + '</b><br/>Risk Score: ' + p.data.maxRisk +
+              '<br/>Anomaly Txns: ' + p.data.anomalyCount;
+          }
+          if (p.dataType === 'edge') {
+            return p.data.source + ' → ' + p.data.target +
+              '<br/>Amount: $' + p.data.value.toLocaleString() +
+              '<br/>Count: ' + p.data.count;
+          }
+          return '';
+        },
+      },
+      series: [{
+        type: 'graph', layout: 'force', roam: true,
+        label: { show: true, color: '#e6edf3', fontSize: 11 },
+        force: { repulsion: 300, edgeLength: [90, 180] },
+        data: nodes, links: links,
+      }],
+    });
+    window.addEventListener('resize', () => chart.resize());
+  </script>
+</body>
+</html>

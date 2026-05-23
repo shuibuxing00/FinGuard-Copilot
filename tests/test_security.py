@@ -10,7 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from security import Anonymizer, RBAC, LLMGuard
+from datetime import datetime
+from security import Anonymizer, RBAC, LLMGuard, IdentityAuth
 from core import AuditTrail
 
 
@@ -109,15 +110,18 @@ class TestRBAC:
         assert RBAC.validate_role('superuser') == False
     
     def test_analyst_permissions(self):
-        """Analyst should only access limited fields."""
+        """Analyst should only access core transaction fields."""
         analyst_fields = RBAC.get_visible_fields('analyst')
         
         assert 'user_id' in analyst_fields
         assert 'amount' in analyst_fields
         assert 'timestamp' in analyst_fields
         assert 'risk_score' in analyst_fields
+        assert 'transaction_id' in analyst_fields
         
-        # Should not have access to sensitive fields
+        # Should not have operational or restricted fields
+        assert 'device_id' not in analyst_fields
+        assert 'location' not in analyst_fields
         assert 'email' not in analyst_fields
         assert 'phone' not in analyst_fields
         assert 'account_number' not in analyst_fields
@@ -135,15 +139,32 @@ class TestRBAC:
         assert 'location' in auditor_fields
     
     def test_admin_permissions(self):
-        """Admin should have full access."""
+        """Admin should have full access including PII."""
         admin_fields = RBAC.get_visible_fields('admin')
         
-        # Should have all fields
-        assert len(admin_fields) > 10
+        assert len(admin_fields) > 15
         assert 'user_id' in admin_fields
         assert 'email' in admin_fields
         assert 'phone' in admin_fields
         assert 'account_number' in admin_fields
+        assert 'metadata' in admin_fields
+
+    def test_filter_dataframe(self):
+        """DataFrame export should respect column-level RBAC."""
+        import pandas as pd
+        df = pd.DataFrame({
+            'user_id': ['a'],
+            'amount': [100],
+            'email': ['x@y.com'],
+        })
+        analyst_df = RBAC.filter_dataframe(df, 'analyst')
+        assert 'email' not in analyst_df.columns
+        assert 'amount' in analyst_df.columns
+
+    def test_field_access_matrix(self):
+        """Matrix should list every tracked field."""
+        matrix = RBAC.get_field_access_matrix()
+        assert len(matrix) == len(RBAC.ALL_FIELDS)
     
     def test_can_access_analyst(self):
         """Test can_access for analyst role."""
@@ -337,6 +358,38 @@ class TestAuditTrail:
         assert 'total_count' in summary
         assert 'integrity_status' in summary
         assert summary['total_count'] == 1
+
+
+# ============================================================================
+# Identity Auth Tests
+# ============================================================================
+
+class TestIdentityAuth:
+    """Tests for employee identity verification."""
+
+    def test_valid_analyst_credentials(self):
+        ok, msg = IdentityAuth.verify('analyst', 'ANA-1001', 'analyst-secure-42')
+        assert ok is True
+        assert 'verified' in msg.lower()
+
+    def test_wrong_passcode(self):
+        ok, _ = IdentityAuth.verify('analyst', 'ANA-1001', 'wrong-passcode')
+        assert ok is False
+
+    def test_wrong_employee_id(self):
+        ok, _ = IdentityAuth.verify('auditor', 'ANA-1001', 'auditor-secure-88')
+        assert ok is False
+
+    def test_role_mismatch_credentials(self):
+        ok, _ = IdentityAuth.verify('admin', 'ANA-1001', 'admin-secure-99')
+        assert ok is False
+
+    def test_session_expiry(self):
+        from datetime import timedelta
+        expires = IdentityAuth.session_expires_at()
+        assert IdentityAuth.is_session_valid(expires)
+        past = datetime.utcnow() - timedelta(minutes=1)
+        assert IdentityAuth.is_session_valid(past) is False
 
 
 # ============================================================================

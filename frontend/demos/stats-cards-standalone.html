@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance Stats Cards</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: #0e1117; color: #e6edf3;
+      font-family: 'Segoe UI', system-ui, sans-serif; padding: 2rem;
+    }
+    h1 { font-size: 1.35rem; margin-bottom: 1.5rem; }
+    .cards {
+      display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+    }
+    .card {
+      flex: 1; min-width: 200px; padding: 1.25rem 1.5rem; border-radius: 12px;
+      border: 1px solid #30363d; box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+    }
+    .card-risk {
+      background: linear-gradient(135deg, #3d1515 0%, #1a0a0a 100%);
+    }
+    .card-velocity {
+      background: linear-gradient(135deg, #3d2e15 0%, #1a1408 100%);
+    }
+    .card-location {
+      background: linear-gradient(135deg, #153d2e 0%, #081a14 100%);
+    }
+    .card-label { font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; }
+    .card-value { font-size: 2.25rem; font-weight: 700; }
+    .card-sub { font-size: 0.75rem; color: #6e7681; margin-top: 0.5rem; }
+    pre {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 1rem; overflow: auto; font-size: 0.75rem; max-height: 200px;
+    }
+    button {
+      background: #238636; color: #fff; border: none; padding: 0.5rem 1rem;
+      border-radius: 6px; cursor: pointer; margin-right: 0.5rem;
+    }
+    button:hover { background: #2ea043; }
+  </style>
+</head>
+<body>
+  <h1>Top Statistics Cards (Pure Frontend)</h1>
+  <div class="cards" id="cards"></div>
+  <button type="button" id="btnShuffle">Simulate data change</button>
+  <p style="color:#8b949e;font-size:0.85rem;margin-top:1rem;">Cards auto-update when the transaction array changes.</p>
+  <pre id="dataPreview"></pre>
+
+  <script>
+    let transactions = [];
+
+    async function loadData() {
+      const res = await fetch('../mock/transactions.json');
+      transactions = await res.json();
+      render();
+    }
+
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    function countHighRisk(data, threshold = 80) {
+      return data.filter(t => t.risk_score >= threshold).length;
+    }
+
+    function countLocationMismatches(data) {
+      return data.filter(t => t.location_consistency === 0).length;
+    }
+
+    function countHighFrequencyAccounts(data, minCount = 3) {
+      const byUser = {};
+      data.forEach(t => {
+        if (!byUser[t.user_id]) byUser[t.user_id] = [];
+        byUser[t.user_id].push(new Date(t.timestamp).getTime());
+      });
+      let n = 0;
+      Object.values(byUser).forEach(times => {
+        times.sort((a, b) => a - b);
+        for (let i = 0; i < times.length; i++) {
+          let j = i;
+          while (j < times.length && times[j] - times[i] <= ONE_HOUR) j++;
+          if (j - i >= minCount) { n++; break; }
+        }
+      });
+      return n;
+    }
+
+    function computeStats(data) {
+      return {
+        highRisk: countHighRisk(data),
+        highFrequencyAccounts: countHighFrequencyAccounts(data),
+        locationMismatches: countLocationMismatches(data),
+      };
+    }
+
+    function render() {
+      const s = computeStats(transactions);
+      document.getElementById('cards').innerHTML = `
+        <div class="card card-risk">
+          <div class="card-label">🚨 High Risk Transactions</div>
+          <div class="card-value">${s.highRisk}</div>
+          <div class="card-sub">risk_score ≥ 80</div>
+        </div>
+        <div class="card card-velocity">
+          <div class="card-label">⏱️ High Frequency Accounts</div>
+          <div class="card-value">${s.highFrequencyAccounts}</div>
+          <div class="card-sub">≥ 3 txns in any 1-hour window</div>
+        </div>
+        <div class="card card-location">
+          <div class="card-label">📍 Location Mismatches</div>
+          <div class="card-value">${s.locationMismatches}</div>
+          <div class="card-sub">location_consistency === 0</div>
+        </div>
+      `;
+      document.getElementById('dataPreview').textContent =
+        JSON.stringify({ stats: s, recordCount: transactions.length }, null, 2);
+    }
+
+    document.getElementById('btnShuffle').addEventListener('click', () => {
+      transactions = transactions.map(t => ({
+        ...t,
+        risk_score: Math.min(100, Math.max(0, t.risk_score + (Math.random() > 0.5 ? 15 : -10))),
+      }));
+      render();
+    });
+
+    loadData();
+  </script>
+</body>
+</html>

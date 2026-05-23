@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Export Case Summary</title>
+  <style>
+    body { font-family: system-ui; background: #0e1117; color: #e6edf3; padding: 2rem; max-width: 720px; margin: 0 auto; }
+    button { background: #2563eb; color: #fff; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; margin-right: 0.5rem; }
+    button.secondary { background: #30363d; }
+    pre { background: #161b22; border: 1px solid #30363d; padding: 1rem; border-radius: 8px; white-space: pre-wrap; font-size: 0.85rem; }
+    .status { color: #3fb950; margin-top: 0.75rem; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Export Case Summary</h1>
+  <p style="color:#8b949e">Collects transactions with risk_score ≥ 80, grouped by user_id.</p>
+  <button type="button" id="copyBtn">Copy to Clipboard</button>
+  <button type="button" id="dlBtn" class="secondary">Download .txt</button>
+  <p class="status" id="status"></p>
+  <pre id="output">Loading…</pre>
+
+  <script>
+    const THRESHOLD = 80;
+
+    function buildGroups(transactions) {
+      const high = transactions.filter(t => t.risk_score >= THRESHOLD);
+      const byUser = {};
+      high.forEach(t => {
+        if (!byUser[t.user_id]) {
+          byUser[t.user_id] = { user_id: t.user_id, maxRisk: 0, behaviors: new Set(), totalAmount: 0, txnCount: 0 };
+        }
+        const g = byUser[t.user_id];
+        g.maxRisk = Math.max(g.maxRisk, t.risk_score);
+        g.totalAmount += t.amount;
+        g.txnCount++;
+        if (t.anomaly_type) g.behaviors.add(t.anomaly_type);
+        if (t.risk_explanation) g.behaviors.add(t.risk_explanation);
+      });
+      return Object.values(byUser);
+    }
+
+    function formatText(groups) {
+      const exportTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
+      return groups.map(g => `---
+Case Summary - Export Time: ${exportTime}
+User ID: ${g.user_id}
+Risk Score: ${g.maxRisk}
+Suspicious Behavior: ${[...g.behaviors].join('; ') || 'High risk cluster'}
+Total Amount: ${g.totalAmount.toLocaleString()}
+Transaction Count: ${g.txnCount}
+---`).join('\n\n');
+    }
+
+    let summaryText = '';
+
+    fetch('../mock/transactions.json')
+      .then(r => r.json())
+      .then(data => {
+        summaryText = formatText(buildGroups(data));
+        document.getElementById('output').textContent = summaryText || '(No cases above threshold)';
+      });
+
+    document.getElementById('copyBtn').onclick = async () => {
+      await navigator.clipboard.writeText(summaryText);
+      document.getElementById('status').textContent = 'Copied to clipboard.';
+    };
+
+    document.getElementById('dlBtn').onclick = () => {
+      const blob = new Blob([summaryText], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'case-summary-' + Date.now() + '.txt';
+      a.click();
+      document.getElementById('status').textContent = 'Download started.';
+    };
+  </script>
+</body>
+</html>
