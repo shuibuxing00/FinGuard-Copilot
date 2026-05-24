@@ -7,6 +7,7 @@ from datetime import datetime
 import streamlit as st
 
 from security import IdentityAuth, RBAC
+from security.identity_auth import MAX_FAILED_ATTEMPTS, LOCKOUT_MINUTES
 
 
 def _inject_auth_styles() -> None:
@@ -174,10 +175,10 @@ def _render_login_form() -> bool:
         else:
             attempts = st.session_state.get("failed_attempts", 0) + 1
             st.session_state.failed_attempts = attempts
-            if attempts >= IdentityAuth.MAX_FAILED_ATTEMPTS:
+            if attempts >= MAX_FAILED_ATTEMPTS:
                 from datetime import timedelta
                 st.session_state.lockout_until = (
-                    datetime.utcnow() + timedelta(minutes=IdentityAuth.LOCKOUT_MINUTES)
+                    datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
                 )
                 st.session_state.failed_attempts = 0
             st.sidebar.error(msg)

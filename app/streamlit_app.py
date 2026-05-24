@@ -14,7 +14,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from security import Anonymizer, RBAC, LLMGuard, IdentityAuth
-from core import AuditTrail, SplunkTools, ComplianceRAG, InvestigationAgent
+from core.audit_trail import AuditTrail
+from core.splunk_tools import SplunkTools
 from ui import (
     render_dashboard,
     render_fund_flow,
@@ -284,8 +285,18 @@ def render_investigation_interface():
     )
 
     try:
+        from core.rag_tools import ComplianceRAG
+        from core.agent import InvestigationAgent
+
         rag_tools = ComplianceRAG(laws_dir="data/compliance_laws")
         agent = InvestigationAgent(splunk_tools, rag_tools, llm_guard)
+    except ImportError as e:
+        st.error(
+            "Investigation assistant dependencies are not fully installed "
+            f"({e}). Dashboard and Data Output remain available."
+        )
+        st.code("pip install langchain langchain-openai openai chromadb")
+        return
     except Exception as e:
         st.error(f"Failed to initialize investigation agent: {e}")
         return
