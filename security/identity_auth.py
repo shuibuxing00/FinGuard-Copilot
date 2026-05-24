@@ -48,6 +48,10 @@ class IdentityAuth:
     Verifies employee identity before granting a compliance role.
     """
 
+    SESSION_DURATION_MINUTES = SESSION_DURATION_MINUTES
+    MAX_FAILED_ATTEMPTS = MAX_FAILED_ATTEMPTS
+    LOCKOUT_MINUTES = LOCKOUT_MINUTES
+
     @staticmethod
     def get_role_catalog() -> Dict[str, dict]:
         """Public role metadata for UI (no secrets)."""
