@@ -100,8 +100,6 @@ def main() -> int:
         check(rel, (ROOT / rel).is_file())
 
     print("\nManual steps (cannot verify from repo):")
-    print("  [ ] Demo video (<3 min, YouTube/Vimeo) uploaded and linked on Devpost")
-    print("  [ ] Devpost submission form completed (Security track)")
     print("  [ ] GitHub repo public with MIT license in About section")
     print("  [ ] Splunk Enterprise running with .env credentials configured")
     print("  [ ] OPENAI_API_KEY set in local .env (not committed)")

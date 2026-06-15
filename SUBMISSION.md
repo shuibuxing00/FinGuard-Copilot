@@ -17,8 +17,8 @@
 | Example datasets | ✅ | `data/compliance_laws/`, synthetic generator |
 | Architecture diagram at repo root | ✅ | [architecture_diagram.md](architecture_diagram.md), [architecture_diagram.png](architecture_diagram.png) |
 | Splunk AI at runtime | ✅ | `splunklib.ai.Agent` + MCP + indexed Splunk data |
-| Demo video (<3 min) | ⬜ **You** | Script below — record & upload to YouTube |
-| Devpost form submitted | ⬜ **You** | Before **Jun 15, 2026 9:00 AM PDT** |
+| Hackathon-period updates | ✅ | [HACKATHON_UPDATES.md](HACKATHON_UPDATES.md) |
+| Splunk AI runtime proof | ✅ | `scripts/prove_splunk_ai_runtime.py` |
 
 Run local verification:
 
@@ -38,8 +38,6 @@ python scripts/prove_splunk_ai_runtime.py   # proves Splunk AI at runtime (needs
 | **Not updated during hackathon** | ❌ No | First commit **2026-05-21** (after May 18); see [HACKATHON_UPDATES.md](HACKATHON_UPDATES.md) |
 | **No OSI license** | ❌ No | [LICENSE](LICENSE) (MIT) at repo root — confirm visible in GitHub **About** section |
 | **Repo not accessible** | ❌ No | Public: https://github.com/shuibuxing00/FinGuard-Copilot (test in incognito) |
-
-**Still required from you:** demo video + Devpost form (see below).
 
 ---
 
@@ -66,23 +64,6 @@ python scripts/prove_splunk_ai_runtime.py   # proves Splunk AI at runtime (needs
 4. Sign in (Analyst: `ANA-1001` / `analyst-secure-42`)
 5. Click **Load & Index to Splunk**
 6. Open **Investigation** tab and ask: *Investigate user USER_00001*
-
----
-
-## Demo Video Script (~2:30, English)
-
-Record screen + voiceover. Show Streamlit on localhost.
-
-| Time | Scene | Narration |
-|------|-------|-----------|
-| 0:00–0:20 | Title slide + problem | "Compliance teams waste minutes triaging suspicious transactions. FinGuard cuts review time using Splunk AI." |
-| 0:20–0:40 | Sign in as Analyst | "Analysts authenticate with verified employee credentials — no arbitrary role switching." |
-| 0:40–1:00 | Click **Load & Index to Splunk** | "Synthetic compliance data is indexed into Splunk in real time — users, transactions, and devices." |
-| 1:00–1:30 | Dashboard tab | "Risk metrics and fund-flow views give context before deep investigation." |
-| 1:30–2:10 | Investigation tab — ask *Investigate USER_00001* | "The Splunk AI agent uses splunklib.ai to call Splunk tools — profile, transactions, generate_spl, and run_splunk_query — against live indexed data." Expand **Splunk AI Investigation Steps**. |
-| 2:10–2:30 | Audit tab + architecture.png in repo | "Every action is auditable. Architecture shows Splunk, AI agents, and data flow. FinGuard — Security track, Splunk Agentic Ops Hackathon." |
-
-**Upload:** YouTube or Vimeo (public). Paste URL into Devpost.
 
 ---
 

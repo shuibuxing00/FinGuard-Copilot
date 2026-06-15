@@ -18,7 +18,6 @@ Reduce manual review from minutes to seconds with identity-verified RBAC, tamper
 | Dependencies & example config | ✅ | `requirements.txt`, `requirements-minimal.txt`, [.env.example](.env.example) |
 | Example datasets | ✅ | [data/compliance_laws/](data/compliance_laws/), [frontend/mock/](frontend/mock/), generator in [data/generate.py](data/generate.py) |
 | Architecture diagram (root) | ✅ | [architecture_diagram.md](architecture_diagram.md), [architecture_diagram.png](architecture_diagram.png), [architecture.png](architecture.png) |
-| Demo video (<3 min) | ⬜ | See [SUBMISSION.md](SUBMISSION.md) for script & Devpost link |
 | Hackathon-period updates | ✅ | [HACKATHON_UPDATES.md](HACKATHON_UPDATES.md) |
 | Splunk AI runtime proof | ✅ | [scripts/prove_splunk_ai_runtime.py](scripts/prove_splunk_ai_runtime.py) |
 
@@ -124,7 +123,7 @@ FinGuard-Copilot/
 ├── LICENSE                      # MIT
 ├── README.md                    # This file
 ├── ARCHITECTURE.md              # Splunk / AI / data-flow documentation
-├── SUBMISSION.md                # Hackathon checklist & demo video script
+├── SUBMISSION.md                # Hackathon submission & verification guide
 ├── architecture_diagram.png     # Root architecture diagram (hackathon asset)
 ├── architecture.svg             # Vector architecture diagram
 ├── requirements.txt             # Full Python dependencies
