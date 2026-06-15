@@ -24,7 +24,22 @@ Run local verification:
 
 ```bash
 python scripts/verify_submission.py
+python scripts/prove_splunk_ai_runtime.py   # proves Splunk AI at runtime (needs .env + Splunk)
 ```
+
+---
+
+## Disqualification Self-Check (Official Criteria)
+
+| Risk | Applies to you? | Evidence in this repo |
+|------|-----------------|----------------------|
+| **Splunk AI not used at runtime** | ❌ No | `core/splunk_ai_agent.py` calls `splunklib.ai.Agent`; Investigation tab only; run `scripts/prove_splunk_ai_runtime.py` |
+| **No architecture diagram** | ❌ No | `architecture_diagram.png` + `architecture_diagram.md` at repo root |
+| **Not updated during hackathon** | ❌ No | First commit **2026-05-21** (after May 18); see [HACKATHON_UPDATES.md](HACKATHON_UPDATES.md) |
+| **No OSI license** | ❌ No | [LICENSE](LICENSE) (MIT) at repo root — confirm visible in GitHub **About** section |
+| **Repo not accessible** | ❌ No | Public: https://github.com/shuibuxing00/FinGuard-Copilot (test in incognito) |
+
+**Still required from you:** demo video + Devpost form (see below).
 
 ---
 

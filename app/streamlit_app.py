@@ -319,6 +319,14 @@ def render_investigation_interface():
         st.warning("Load & index data to Splunk first to use the investigation assistant.")
         return
 
+    if not st.session_state.splunk_connected:
+        st.error(
+            "Splunk Enterprise is required for this tab. "
+            "Configure `.env` (port **8089**) and click **Load & Index to Splunk** again. "
+            "Investigation uses **splunklib.ai.Agent** against real indexed data — not mock output."
+        )
+        return
+
     llm_guard = st.session_state.security_components["llm_guard"]
 
     try:
@@ -328,9 +336,14 @@ def render_investigation_interface():
         return
 
     meta = RBAC.get_role_metadata(st.session_state.role)
+    splunk_ver = st.session_state.splunk_status.get("version", "connected")
+    st.success(
+        f"Splunk AI active · splunklib.ai Agent · Splunk v{splunk_ver} · "
+        f"Role: {meta['label']} ({st.session_state.employee_id})"
+    )
     st.caption(
-        f"Powered by **splunklib.ai Agent** · Queries run as **{meta['label']}** "
-        f"({st.session_state.employee_id}). Uses local `generate_spl` + Splunk MCP when installed."
+        "Investigation calls Splunk SDK AI tools (`generate_spl`, `run_splunk_query`, profile/txn/device) "
+        "against indexed Splunk data. Remote MCP tools used when Splunk MCP Server is installed."
     )
 
     if len(st.session_state.messages) == 0:

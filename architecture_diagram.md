@@ -1,8 +1,14 @@
 # Architecture Diagram
 
-![FinGuard Splunk AI Architecture](architecture.png)
+![FinGuard Splunk AI Architecture](architecture_diagram.png)
 
-This repository includes a root-level architecture diagram (`architecture.png`) as required by the Splunk Agentic Ops Hackathon submission rules.
+This repository includes root-level architecture diagrams as required by the Splunk Agentic Ops Hackathon:
+
+| File | Purpose |
+|------|---------|
+| **`architecture_diagram.png`** | Primary visual diagram (required filename) |
+| `architecture_diagram.md` | This file — diagram + Mermaid data flow |
+| `architecture.png` | Same diagram (companion asset) |
 
 ## System Architecture
 

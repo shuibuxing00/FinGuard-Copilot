@@ -35,8 +35,30 @@ ARCHITECTURE_ASSETS = [
 
 OPTIONAL_BUT_RECOMMENDED = [
     "SUBMISSION.md",
+    "HACKATHON_UPDATES.md",
     "ARCHITECTURE.md",
     "scripts/INSTALL_SPLUNK_MCP.md",
+    "scripts/prove_splunk_ai_runtime.py",
+]
+
+DISQUALIFICATION_CHECKS = [
+    (
+        "Splunk AI code path (not mock-only investigation)",
+        lambda: "SplunkInvestigationAgent" in (ROOT / "app/streamlit_app.py").read_text(encoding="utf-8")
+        and "splunklib.ai" in (ROOT / "core/splunk_ai_agent.py").read_text(encoding="utf-8"),
+    ),
+    (
+        "Investigation requires Splunk connection gate",
+        lambda: "splunk_connected" in (ROOT / "app/streamlit_app.py").read_text(encoding="utf-8"),
+    ),
+    (
+        "MIT LICENSE at repo root",
+        lambda: (ROOT / "LICENSE").read_text(encoding="utf-8").startswith("MIT License"),
+    ),
+    (
+        "Hackathon updates documented",
+        lambda: (ROOT / "HACKATHON_UPDATES.md").is_file(),
+    ),
 ]
 
 
@@ -68,6 +90,10 @@ def main() -> int:
     all_ok &= check("splunklib.ai.Agent", "splunklib.ai" in agent_src and "Agent" in agent_src)
     all_ok &= check("generate_spl local tool", "def generate_spl" in tools_src)
     all_ok &= check("Splunk ingest module", "def ingest" in (ROOT / "data/splunk_ingest.py").read_text(encoding="utf-8"))
+
+    print("\nDisqualification risk checks (official criteria):")
+    for label, fn in DISQUALIFICATION_CHECKS:
+        all_ok &= check(label, fn())
 
     print("\nRecommended extras:")
     for rel in OPTIONAL_BUT_RECOMMENDED:
