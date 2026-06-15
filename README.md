@@ -17,22 +17,25 @@ Reduce manual review from minutes to seconds with identity-verified RBAC, tamper
 | README with setup & run | ✅ | This file |
 | Dependencies & example config | ✅ | `requirements.txt`, `requirements-minimal.txt`, [.env.example](.env.example) |
 | Example datasets | ✅ | [data/compliance_laws/](data/compliance_laws/), [frontend/mock/](frontend/mock/), generator in [data/generate.py](data/generate.py) |
-| Architecture diagram (root) | ✅ | [architecture.svg](architecture.svg) + [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Architecture diagram (root) | ✅ | [architecture.png](architecture.png), [architecture.svg](architecture.svg), [ARCHITECTURE.md](ARCHITECTURE.md) |
 
-**Architecture covers:** Splunk interaction (mock + SDK-ready), AI agent integration (LangChain + OpenAI), and end-to-end data flow.
+**Architecture covers:** Splunk AI (`splunklib.ai` + MCP Server), real indexed Splunk data, and end-to-end data flow.
 
 ---
 
 ## Architecture
 
-![FinGuard Architecture](architecture.svg)
+![FinGuard Architecture](architecture.png)
+
+Also: [architecture.svg](architecture.svg) · [architecture_diagram.md](architecture_diagram.md)
 
 Detailed diagrams (Mermaid sequence & component views): **[ARCHITECTURE.md](ARCHITECTURE.md)**
 
 | Integration | Implementation |
 |-------------|----------------|
-| **Splunk** | `core/splunk_tools.py` — agentic tools over mock indexes locally; `splunk-sdk` for production SPL |
-| **AI / Agents** | `core/agent.py` — LangChain ReAct + OpenAI; 4 tools wired to Splunk + RAG |
+| **Splunk AI** | `splunklib.ai.Agent` + Splunk MCP Server (`splunk_run_query`, etc.) |
+| **Splunk Data** | `data/splunk_ingest.py` indexes compliance events to Splunk at runtime |
+| **AI / Agents** | `core/splunk_ai_agent.py` — Splunk SDK AI agentic loop + OpenAI backend |
 | **Data flow** | UI → Security (auth, RBAC, anonymize) → Tools → Audit hash chain → filtered response |
 
 ---
@@ -92,7 +95,7 @@ Use matching **role + credentials** (sidebar):
 | Auditor (L2) | `AUD-2002` | `auditor-secure-88` |
 | Admin (L3) | `ADM-3003` | `admin-secure-99` |
 
-Then click **Load Synthetic Data** in the sidebar.
+Then click **Load & Index to Splunk** in the sidebar.
 
 ### 5. (Optional) React dashboard
 
@@ -241,13 +244,27 @@ Covers pseudonymization, RBAC, LLM guard patterns, audit integrity, and identity
 
 ---
 
-## Splunk Production Notes
+## Splunk AI Integration
 
-The demo uses **in-memory mock indexes**. To connect a real Splunk deployment:
+This project uses **Splunk AI capabilities at runtime**:
 
-1. Configure `SPLUNK_*` variables in `.env`
-2. Replace `SplunkTools.load_mock_data()` with SDK `service.jobs.create()` + SPL queries
-3. Keep `_audit_and_filter()` so RBAC and audit trail still apply
+- `splunklib.ai.Agent` — Splunk Python SDK 3.0 agentic investigation loop
+- Splunk MCP Server — remote tools (`splunk_run_query`, `splunk_get_info`, …)
+- Local MCP tools — `splunk_app/finguard_copilot/bin/tools.py`
+- Real indexed data — `data/splunk_ingest.py` writes to Splunk `main` index
+
+Configure `.env` (management API port **8089**, not web UI port 8000):
+
+```env
+SPLUNK_HOST=localhost
+SPLUNK_PORT=8089
+SPLUNK_USERNAME=admin
+SPLUNK_PASSWORD=your_password
+SPLUNK_INDEX=main
+OPENAI_API_KEY=your_key
+```
+
+Install Splunk MCP Server: [scripts/INSTALL_SPLUNK_MCP.md](scripts/INSTALL_SPLUNK_MCP.md).
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for SPL examples and sequence diagrams.
 
@@ -265,6 +282,6 @@ Copyright (c) 2026 FinGuard Compliance Copilot Contributors
 
 **Track:** Security · **Theme:** AI-powered compliance with financial-grade controls
 
-**Highlights:** Splunk-shaped agentic tools · verified RBAC · audit hash chain · compliance RAG · 10-second review workflow
+**Highlights:** Splunk AI (`splunklib.ai` + MCP) · real Splunk indexed data · verified RBAC · audit hash chain · 10-second review workflow
 
 *Synthetic data only — no real customer information.*

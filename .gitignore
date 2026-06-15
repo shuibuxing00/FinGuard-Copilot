@@ -37,3 +37,7 @@ install_log.txt
 # Build artifacts
 dist/
 build/
+
+# Large Splunk app packages (download locally)
+packages/*.tgz
+packages/*.tar.gz

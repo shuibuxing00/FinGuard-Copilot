@@ -9,13 +9,19 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
+
+# Load environment before other imports that read os.environ
+load_dotenv()
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from security import Anonymizer, RBAC, LLMGuard, IdentityAuth
 from core.audit_trail import AuditTrail
-from core.splunk_tools import SplunkTools
+from core.splunk_ai_agent import SplunkInvestigationAgent
+from core.splunk_connection import connect_splunk, get_splunk_status, load_splunk_config
+from data.splunk_ingest import add_display_user_ids, ingest_from_session
 from ui import (
     render_dashboard,
     render_fund_flow,
@@ -103,6 +109,9 @@ def initialize_session():
             "rbac": RBAC(),
             "llm_guard": LLMGuard(),
         },
+        "splunk_connected": False,
+        "splunk_status": {},
+        "splunk_ingest_result": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -126,31 +135,70 @@ def render_sidebar():
 
     load_disabled = not is_authenticated
     if st.sidebar.button(
-        "Load Synthetic Data",
+        "Load & Index to Splunk",
         use_container_width=True,
         disabled=load_disabled,
+        help="Generate synthetic data and index into Splunk for real SPL queries",
     ):
-        with st.spinner("Generating synthetic data..."):
+        with st.spinner("Generating data and indexing to Splunk..."):
             try:
                 users_df, txns_df, devices_df = generate_synthetic_data(
                     n_users=10,
                     n_transactions=500,
                     seed=42,
                 )
+                users_df, txns_df, devices_df = add_display_user_ids(
+                    users_df, txns_df, devices_df,
+                )
                 st.session_state.users_df = users_df
                 st.session_state.transactions_df = txns_df
                 st.session_state.devices_df = devices_df
                 st.session_state.data_loaded = True
+
+                ingest_result = ingest_from_session(users_df, txns_df, devices_df)
+                st.session_state.splunk_ingest_result = ingest_result
+
+                try:
+                    service = connect_splunk()
+                    st.session_state.splunk_connected = True
+                    st.session_state.splunk_status = get_splunk_status(service)
+                except Exception as conn_err:
+                    st.session_state.splunk_connected = False
+                    st.sidebar.warning(f"Splunk connection issue: {conn_err}")
+
                 st.session_state.audit_trail.add_entry(
-                    action="load_synthetic_data",
+                    action="load_and_index_splunk",
                     user_id=st.session_state.employee_id or "anonymous",
-                    query="n_users=10,n_transactions=500",
-                    result_hash="synthetic_batch",
+                    query="n_users=10,n_transactions=500,splunk_index",
+                    result_hash="splunk_indexed_batch",
                     role=st.session_state.role,
                 )
-                st.sidebar.success("Data loaded successfully.")
+
+                if ingest_result.get("success"):
+                    counts = ingest_result.get("counts", {})
+                    st.sidebar.success(
+                        f"Indexed to Splunk: {counts.get('users', 0)} users, "
+                        f"{counts.get('transactions', 0)} txns, "
+                        f"{counts.get('devices', 0)} devices"
+                    )
+                else:
+                    st.sidebar.error(
+                        f"Splunk ingest failed: {ingest_result.get('error', 'unknown')}"
+                    )
             except Exception as e:
                 st.sidebar.error(f"Error loading data: {e}")
+
+    if is_authenticated:
+        st.sidebar.markdown("### Splunk AI Status")
+        if st.session_state.splunk_connected:
+            ver = st.session_state.splunk_status.get("version", "connected")
+            st.sidebar.success(f"Splunk connected (v{ver})")
+            cfg = load_splunk_config()
+            st.sidebar.caption(
+                f"Index: `{cfg['index']}` · SDK AI: `splunklib.ai`"
+            )
+        else:
+            st.sidebar.warning("Splunk not connected — check .env credentials")
 
     if is_authenticated and st.session_state.data_loaded:
         st.sidebar.markdown("### Access Summary")
@@ -180,9 +228,12 @@ def render_header(is_authenticated: bool):
 
     with col1:
         if st.session_state.data_loaded:
-            st.success("Data Loaded")
+            if st.session_state.splunk_connected:
+                st.success("Data Loaded · Splunk Indexed")
+            else:
+                st.warning("Data Loaded · Splunk Pending")
         else:
-            st.warning("Load synthetic data from the sidebar")
+            st.warning("Load & index data from the sidebar")
 
     with col2:
         status = st.session_state.audit_trail.verify_integrity()
@@ -261,58 +312,33 @@ def render_dashboards():
 
 
 def render_investigation_interface():
-    """Render AI investigation interface."""
-    st.markdown("## Investigation Assistant")
+    """Render Splunk AI investigation interface."""
+    st.markdown("## Investigation Assistant (Splunk AI)")
 
     if not st.session_state.data_loaded:
-        st.warning("Load synthetic data first to use the investigation assistant.")
+        st.warning("Load & index data to Splunk first to use the investigation assistant.")
         return
 
-    anonymizer = st.session_state.security_components["anonymizer"]
-    rbac = st.session_state.security_components["rbac"]
     llm_guard = st.session_state.security_components["llm_guard"]
 
-    splunk_tools = SplunkTools(
-        audit_trail=st.session_state.audit_trail,
-        anonymizer=anonymizer,
-        rbac=rbac,
-        role=st.session_state.role,
-    )
-    splunk_tools.load_mock_data(
-        users_df=st.session_state.users_df,
-        transactions_df=st.session_state.transactions_df,
-        devices_df=st.session_state.devices_df,
-    )
-
     try:
-        from core.rag_tools import ComplianceRAG
-        from core.agent import InvestigationAgent
-
-        rag_tools = ComplianceRAG(laws_dir="data/compliance_laws")
-        agent = InvestigationAgent(splunk_tools, rag_tools, llm_guard)
-    except ImportError as e:
-        st.error(
-            "Investigation assistant dependencies are not fully installed "
-            f"({e}). Dashboard and Data Output remain available."
-        )
-        st.code("pip install langchain langchain-openai openai chromadb")
-        return
+        agent = SplunkInvestigationAgent(llm_guard=llm_guard)
     except Exception as e:
-        st.error(f"Failed to initialize investigation agent: {e}")
+        st.error(f"Failed to initialize Splunk AI agent: {e}")
         return
 
     meta = RBAC.get_role_metadata(st.session_state.role)
     st.caption(
-        f"Queries run as **{meta['label']}** ({st.session_state.employee_id}). "
-        f"Results are pseudonymized and filtered to {len(RBAC.get_visible_fields(st.session_state.role))} fields."
+        f"Powered by **splunklib.ai Agent** · Queries run as **{meta['label']}** "
+        f"({st.session_state.employee_id}). Splunk MCP `generate_spl` used when MCP Server is installed."
     )
 
     if len(st.session_state.messages) == 0:
         st.info(
             "**Example queries:**\n"
-            "- Investigate user U_00001\n"
-            "- Review high-risk transactions\n"
-            "- Check for suspicious patterns"
+            "- Investigate user USER_00001\n"
+            "- Review high-risk transactions in Splunk\n"
+            "- Check device anomalies for USER_00003"
         )
 
     for message in st.session_state.messages:
@@ -324,15 +350,17 @@ def render_investigation_interface():
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        with st.spinner("Investigating..."):
+        with st.spinner("Splunk AI investigating..."):
             try:
                 result = agent.investigate(user_input)
                 with st.chat_message("assistant"):
                     if result["success"]:
                         st.markdown(result["report"])
-                        with st.expander("Investigation Steps"):
+                        with st.expander("Splunk AI Investigation Steps"):
                             for step in result["reasoning"]:
                                 st.text(step)
+                        with st.expander("Splunk AI Capabilities Used"):
+                            st.json(result.get("splunk_ai", {}))
                         with st.expander("Evidence Traceability"):
                             st.info(
                                 "Evidence linked to compliance regulations and source data queries."

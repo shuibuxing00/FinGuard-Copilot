@@ -1,12 +1,19 @@
 """
 Core module for compliance investigation tool.
-Provides LLM agent, Splunk tools, RAG, and audit trail.
+Provides Splunk AI agent, Splunk tools, RAG, and audit trail.
 """
 
 from .audit_trail import AuditTrail
 from .splunk_tools import SplunkTools
+from .splunk_ai_agent import SplunkInvestigationAgent
 
-__all__ = ["InvestigationAgent", "SplunkTools", "ComplianceRAG", "AuditTrail"]
+__all__ = [
+    "InvestigationAgent",
+    "SplunkInvestigationAgent",
+    "SplunkTools",
+    "ComplianceRAG",
+    "AuditTrail",
+]
 
 
 def __getattr__(name: str):

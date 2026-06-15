@@ -1,9 +1,11 @@
 """
 Splunk Tools module.
-Provides mock data interface simulating Splunk queries with RBAC filtering.
+Provides Splunk data interface with optional real Splunk SDK support.
+Supports real Splunk searches via `splunklib`, with fallback to mock pandas-based data.
 """
 
 import hashlib
+import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import pandas as pd
@@ -11,11 +13,19 @@ from security.rbac import RBAC
 from security.anonymizer import Anonymizer
 from core.audit_trail import AuditTrail
 
+try:
+    import splunklib.client as splunk_client
+    import splunklib.results as splunk_results
+    ResultsReader = splunk_results.JSONResultsReader
+    SPLUNK_SDK_AVAILABLE = True
+except ImportError:
+    SPLUNK_SDK_AVAILABLE = False
+
 
 class SplunkTools:
     """
-    Simulates Splunk data interface with audit logging and RBAC enforcement.
-    All queries are logged to audit trail and results filtered by role.
+    Splunk data interface with optional real Splunk SDK integration,
+    audit logging, and RBAC filtering.
     """
     
     def __init__(
@@ -38,11 +48,99 @@ class SplunkTools:
         self.anonymizer = anonymizer
         self.rbac = rbac
         self.role = role
-        
+
+        self.splunk_service = None
+        self.splunk_connected = False
+        self.splunk_config = self._load_splunk_config()
+        self.user_search_template = self.splunk_config["user_search"]
+        self.txn_search_template = self.splunk_config["txn_search"]
+        self.device_search_template = self.splunk_config["device_search"]
+
+        if self.splunk_config["use_real"] and SPLUNK_SDK_AVAILABLE:
+            self._connect_to_splunk()
+
         self.users_df: Optional[pd.DataFrame] = None
         self.transactions_df: Optional[pd.DataFrame] = None
         self.devices_df: Optional[pd.DataFrame] = None
     
+    def _load_splunk_config(self) -> Dict[str, Any]:
+        """
+        Load Splunk connection configuration from environment variables.
+        """
+        return {
+            "host": os.getenv("SPLUNK_HOST", "localhost"),
+            "port": int(os.getenv("SPLUNK_PORT", "8089")),
+            "username": os.getenv("SPLUNK_USERNAME", "admin"),
+            "password": os.getenv("SPLUNK_PASSWORD", ""),
+            "index": os.getenv("SPLUNK_INDEX", "main"),
+            "use_real": os.getenv("SPLUNK_USE_REAL", "true").lower() in ("1", "true", "yes"),
+            "timeout": int(os.getenv("SPLUNK_SEARCH_TIMEOUT", "60")),
+            "user_search": os.getenv(
+                "SPLUNK_USER_SEARCH",
+                'search index={index} user_id="{user_id}" | table user_id name email risk_score account_status role'
+            ),
+            "txn_search": os.getenv(
+                "SPLUNK_TXN_SEARCH",
+                'search index={index} user_id="{user_id}" | table user_id amount timestamp transaction_type anomaly_type | sort - timestamp | head 20'
+            ),
+            "device_search": os.getenv(
+                "SPLUNK_DEVICE_SEARCH",
+                'search index={index} user_id="{user_id}" | table user_id device_ip device_type timestamp location | sort - timestamp | head 20'
+            ),
+        }
+
+    def _connect_to_splunk(self) -> None:
+        """
+        Initialize a connection to Splunk using the SDK.
+        """
+        if not SPLUNK_SDK_AVAILABLE:
+            print("Splunk SDK not installed; real Splunk integration disabled.")
+            return
+
+        try:
+            self.splunk_service = splunk_client.connect(
+                host=self.splunk_config["host"],
+                port=self.splunk_config["port"],
+                username=self.splunk_config["username"],
+                password=self.splunk_config["password"],
+                scheme="https",
+                verify=False,
+            )
+            self.splunk_connected = True
+        except Exception as e:
+            print(f"Failed to connect to Splunk: {e}")
+            self.splunk_connected = False
+
+    def _run_splunk_search(
+        self,
+        search: str,
+        earliest_time: str = "-24h",
+        latest_time: str = "now",
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute a Splunk search job and return JSON results.
+        """
+        if not self.splunk_connected or self.splunk_service is None:
+            return []
+
+        try:
+            job = self.splunk_service.jobs.create(
+                search,
+                exec_mode="blocking",
+                earliest_time=earliest_time,
+                latest_time=latest_time,
+                timeout=self.splunk_config["timeout"],
+            )
+            results_reader = ResultsReader(
+                job.results(output_mode="json")
+            )
+            results = [dict(item) for item in results_reader if isinstance(item, dict)]
+            job.cancel()
+            return results
+        except Exception as e:
+            print(f"Splunk search failed: {e}")
+            return []
+
     def load_mock_data(
         self,
         users_df: pd.DataFrame,
@@ -143,26 +241,34 @@ class SplunkTools:
             User profile dictionary (RBAC filtered)
         """
         try:
-            if self.users_df is None:
+            if self.splunk_connected:
+                search = self.user_search_template.format(
+                    index=self.splunk_config["index"],
+                    user_id=user_id,
+                )
+                results = self._run_splunk_search(search)
+                if results:
+                    result = results[0]
+                else:
+                    result = {"error": f"No Splunk profile found for {user_id}"}
+            elif self.users_df is None:
                 return {"error": "No mock data loaded"}
-            
-            # Query
-            pseudonym = self.anonymizer.pseudonymize(user_id)
-            user_rows = self.users_df[self.users_df['user_id'] == pseudonym]
-            
-            if user_rows.empty:
-                result = {"error": f"User {pseudonym} not found"}
             else:
-                result = user_rows.iloc[0].to_dict()
-            
+                # Query
+                pseudonym = self.anonymizer.pseudonymize(user_id)
+                user_rows = self.users_df[self.users_df["user_id"] == pseudonym]
+                if user_rows.empty:
+                    result = {"error": f"User {pseudonym} not found"}
+                else:
+                    result = user_rows.iloc[0].to_dict()
+
             # Audit and filter
             return self._audit_and_filter(
                 action="get_user_profile",
-                user_id=pseudonym,
+                user_id=user_id,
                 query=f"user_id={user_id}",
                 result=result
             )
-        
         except Exception as e:
             return {"error": f"Query failed: {str(e)}"}
     
@@ -182,30 +288,33 @@ class SplunkTools:
             List of transactions (RBAC filtered)
         """
         try:
-            if self.transactions_df is None:
+            if self.splunk_connected:
+                search = self.txn_search_template.format(
+                    index=self.splunk_config["index"],
+                    user_id=user_id,
+                )
+                results = self._run_splunk_search(search)
+            elif self.transactions_df is None:
                 return []
-            
-            # Query
-            pseudonym = self.anonymizer.pseudonymize(user_id)
-            user_txns = self.transactions_df[
-                self.transactions_df['user_id'] == pseudonym
-            ]
-            
-            # Filter by time
-            if 'timestamp' in user_txns.columns:
-                user_txns = user_txns.sort_values('timestamp', ascending=False)
-                user_txns = user_txns.head(20)  # Limit to 20 recent
-            
-            results = user_txns.to_dict('records')
-            
+            else:
+                # Query
+                pseudonym = self.anonymizer.pseudonymize(user_id)
+                user_txns = self.transactions_df[
+                    self.transactions_df["user_id"] == pseudonym
+                ]
+                # Filter by time
+                if "timestamp" in user_txns.columns:
+                    user_txns = user_txns.sort_values("timestamp", ascending=False)
+                    user_txns = user_txns.head(20)
+                results = user_txns.to_dict("records")
+
             # Audit and filter
             return self._audit_and_filter(
                 action="get_recent_transactions",
-                user_id=pseudonym,
+                user_id=user_id,
                 query=f"user_id={user_id}, hours={hours}",
                 result=results
             )
-        
         except Exception as e:
             return [{"error": f"Query failed: {str(e)}"}]
     
@@ -220,25 +329,29 @@ class SplunkTools:
             List of device records (RBAC filtered)
         """
         try:
-            if self.devices_df is None:
+            if self.splunk_connected:
+                search = self.device_search_template.format(
+                    index=self.splunk_config["index"],
+                    user_id=user_id,
+                )
+                results = self._run_splunk_search(search)
+            elif self.devices_df is None:
                 return []
-            
-            # Query
-            pseudonym = self.anonymizer.pseudonymize(user_id)
-            user_devices = self.devices_df[
-                self.devices_df['user_id'] == pseudonym
-            ]
-            
-            results = user_devices.to_dict('records')
-            
+            else:
+                # Query
+                pseudonym = self.anonymizer.pseudonymize(user_id)
+                user_devices = self.devices_df[
+                    self.devices_df["user_id"] == pseudonym
+                ]
+                results = user_devices.to_dict("records")
+
             # Audit and filter
             return self._audit_and_filter(
                 action="get_device_history",
-                user_id=pseudonym,
+                user_id=user_id,
                 query=f"user_id={user_id}",
                 result=results
             )
-        
         except Exception as e:
             return [{"error": f"Query failed: {str(e)}"}]
     
