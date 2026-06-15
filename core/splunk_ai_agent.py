@@ -183,6 +183,7 @@ class SplunkInvestigationAgent:
 
         local_allowlist = ToolAllowlist(
             names=[
+                "generate_spl",
                 "run_splunk_query",
                 "get_user_profile",
                 "get_recent_transactions",
@@ -232,8 +233,14 @@ class SplunkInvestigationAgent:
             "splunk_version": self._splunk_status.get("version"),
             "mcp_server_available": bool(self._mcp_client and self._mcp_client.available),
             "mcp_tools": self._mcp_tools,
-            "generate_spl_available": "generate_spl" in self._mcp_tools,
+            "generate_spl_mcp": (
+                "generate_spl" in self._mcp_tools
+                or "splunk_generate_spl" in self._mcp_tools
+            ),
+            "generate_spl_local": True,
+            "generate_spl_available": True,
             "local_tools": [
+                "generate_spl",
                 "get_user_profile",
                 "get_recent_transactions",
                 "get_device_history",

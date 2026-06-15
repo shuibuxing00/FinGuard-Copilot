@@ -1,9 +1,8 @@
 # FinGuard Compliance Copilot — Architecture
 
-This document describes how the application interacts with **Splunk**, how **AI agents** are integrated, and the **data flow** across components.
+This document describes how the application interacts with **Splunk**, how **AI agents** are integrated, and the **data flow** across components — as required by the [Splunk Agentic Ops Hackathon](https://splunk.devpost.com/) submission rules.
 
-> **Visual diagram (repo root):** [`architecture.svg`](architecture.svg)  
-> GitHub also renders the Mermaid diagrams below.
+> **Visual diagram (repo root):** [`architecture_diagram.md`](architecture_diagram.md) · [`architecture.png`](architecture.png) · [`architecture_diagram.png`](architecture_diagram.png)
 
 ---
 
@@ -19,7 +18,7 @@ flowchart TB
 
     subgraph Presentation
         ST[Streamlit App<br/>app/streamlit_app.py]
-        FE[React Dashboard<br/>frontend/]
+        FE[React Dashboard<br/>frontend/ — optional]
     end
 
     subgraph Security["Security Layer"]
@@ -30,17 +29,20 @@ flowchart TB
         Audit[Hash-Chain Audit Trail<br/>audit_trail.py]
     end
 
-    subgraph Agent["AI Agent Layer"]
-        LC[LangChain ReAct Agent<br/>agent.py]
-        OAI[OpenAI GPT-4o-mini API]
+    subgraph Agent["Splunk AI Agent Layer"]
+        SAI[splunklib.ai Agent<br/>core/splunk_ai_agent.py]
+        OAI[OpenAI GPT-4o-mini<br/>LLM backend]
     end
 
-    subgraph Data["Data & Knowledge"]
-        Splunk[Splunk Tools Interface<br/>splunk_tools.py]
-        Mock[(In-Memory Mock Splunk<br/>users / txns / devices)]
-        RAG[Compliance RAG<br/>rag_tools.py]
-        Laws[(Regulation Corpus<br/>data/compliance_laws/*.txt)]
-        Synth[(Synthetic Generator<br/>data/generate.py)]
+    subgraph SplunkAI["Splunk AI Tools"]
+        LocalTools[Local MCP Tools<br/>splunk_app/.../tools.py]
+        MCPServer[Splunk MCP Server<br/>splunk_run_query, etc.]
+        AIAsst[Splunk AI Assistant<br/>generate_spl via MCP when enabled]
+    end
+
+    subgraph Splunk["Splunk Enterprise"]
+        Index[(main index<br/>finguard:* sourcetypes)]
+        Ingest[data/splunk_ingest.py]
     end
 
     Analyst --> ST
@@ -50,20 +52,14 @@ flowchart TB
 
     ST --> Auth
     Auth --> RBAC
-    ST --> Splunk
-    ST --> LC
-    LC --> OAI
-    LC --> Splunk
-    LC --> RAG
-    RAG --> Laws
-
-    Splunk --> Anon
-    Splunk --> RBAC
-    Splunk --> Audit
-    Splunk --> Mock
-    Synth --> Mock
-
-    LC --> Guard
+    ST --> SAI
+    SAI --> OAI
+    SAI --> LocalTools
+    SAI --> MCPServer
+    MCPServer --> AIAsst
+    LocalTools --> Index
+    MCPServer --> Index
+    Ingest --> Index
     ST --> Guard
     ST --> Audit
 ```
@@ -72,40 +68,49 @@ flowchart TB
 
 ## Splunk Integration
 
-The project targets the **Splunk Agentic Ops** use case. Production deployments connect to Splunk Enterprise/Cloud via the Splunk SDK; this repository ships a **mock Splunk layer** so judges and developers can run everything locally without a Splunk cluster.
+FinGuard uses **real Splunk Enterprise** at runtime (management API port **8089**). Synthetic compliance data is indexed into the `main` index with sourcetypes `finguard:users`, `finguard:transactions`, and `finguard:devices`.
 
 | Layer | File | Role |
 |-------|------|------|
-| **Splunk API (production path)** | `splunk-sdk` in `requirements.txt` | Official SDK for real `connect()`, `jobs.create()`, `results()` |
-| **Agentic tool wrapper** | `core/splunk_tools.py` | Exposes `get_user_profile`, `get_recent_transactions`, `get_device_history`, `search_transactions` |
-| **Mock data store** | In-memory Pandas DataFrames | Loaded from `data/generate.py` or CSV; simulates Splunk indexes `users`, `transactions`, `devices` |
-| **Security on every query** | `splunk_tools._audit_and_filter()` | Pseudonymize → query → hash result → audit log → RBAC filter |
+| **Connection** | `core/splunk_connection.py` | SDK `connect()`, config from `.env` |
+| **Data ingestion** | `data/splunk_ingest.py` | Index synthetic users / transactions / devices at runtime |
+| **Splunk AI Agent** | `core/splunk_ai_agent.py` | `splunklib.ai.Agent` agentic investigation loop |
+| **Local MCP tools** | `splunk_app/finguard_copilot/bin/tools.py` | `generate_spl`, `run_splunk_query`, profile/txn/device queries |
+| **Remote MCP client** | `core/splunk_mcp_client.py` | HTTP MCP to Splunk MCP Server (`splunk_run_query`, …) |
+| **Legacy mock path** | `core/splunk_tools.py` | Pandas fallback for dashboard when Splunk unavailable |
 
 ```mermaid
 sequenceDiagram
     participant UI as Streamlit UI
-    participant Agent as Investigation Agent
-    participant ST as SplunkTools
-    participant Sec as Security Layer
-    participant Mock as Mock Splunk Indexes
+    participant Agent as splunklib.ai Agent
+    participant Local as Local tools.py
+    participant MCP as Splunk MCP Server
+    participant Splunk as Splunk Enterprise
 
-    UI->>Agent: User query (validated by LLM Guard)
-    Agent->>ST: get_recent_transactions(user_id)
-    ST->>Sec: pseudonymize(user_id)
-    ST->>Mock: Query transactions DataFrame
-    Mock-->>ST: Raw records
-    ST->>Sec: SHA256 hash + audit_trail.add_entry()
-    ST->>Sec: RBAC.filter_record() per role
-    ST-->>Agent: Filtered fields only
-    Agent->>ST: search_compliance(anomaly_type)
-    Agent-->>UI: Report + reasoning steps
+    UI->>Agent: Investigation query (LLM Guard validated)
+    Agent->>Local: get_user_profile(USER_00001)
+    Local->>Splunk: SPL search index=main sourcetype=finguard:users
+    Splunk-->>Local: JSON results
+    Local-->>Agent: User profile
+    Agent->>Local: get_recent_transactions(USER_00001)
+    Local->>Splunk: SPL search finguard:transactions
+    Splunk-->>Local: Transaction events
+    Agent->>Local: generate_spl("high risk transactions last 24h")
+    Local-->>Agent: Generated SPL
+    Agent->>Local: run_splunk_query(SPL)
+    opt MCP Server installed
+        Agent->>MCP: splunk_run_query(SPL)
+        MCP->>Splunk: Execute search
+    end
+    Agent-->>UI: Risk report + Splunk evidence
 ```
 
-**Mapping to real Splunk:** Replace `load_mock_data()` with SDK calls that run SPL such as:
+**Example SPL** (executed via local tools or MCP):
 
 ```spl
-index=transactions user_id=$pseudonym$ earliest=-24h
-| table amount, timestamp, risk_score, anomaly_type
+search index=main sourcetype=finguard:transactions display_user_id="USER_00001" earliest=-24h
+| sort - timestamp
+| table transaction_id amount timestamp anomaly_type risk_score violation_flags
 ```
 
 ---
@@ -114,29 +119,29 @@ index=transactions user_id=$pseudonym$ earliest=-24h
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **Orchestration** | LangChain ReAct | Multi-step reasoning: plan → tool call → observe → answer |
-| **Model** | OpenAI `gpt-4o-mini` | Natural-language investigation reports |
-| **Tools (4)** | Wrapped `SplunkTools` + `ComplianceRAG` | Structured data access, not raw SQL/SPL in the prompt |
-| **RAG** | ChromaDB (optional) or keyword fallback | Retrieve AML / PIPL / reporting clauses |
+| **Orchestration** | `splunklib.ai.Agent` (Splunk SDK 3.0) | Agentic loop: plan → Splunk tool call → observe → answer |
+| **LLM backend** | OpenAI `gpt-4o-mini` via `OpenAIModel` | Reasoning and report generation |
+| **NL → SPL** | Local `generate_spl` tool + optional MCP `generate_spl` | Natural language to SPL for compliance queries |
+| **Splunk queries** | Local + MCP `run_splunk_query` / `splunk_run_query` | Execute SPL on indexed finguard data |
 | **Safety** | `LLMGuard` | Blocks prompt injection; sanitizes output; adds disclaimer |
 
 ```mermaid
 flowchart LR
-    Q[User Question] --> V{LLM Guard<br/>validate_input}
+    Q[User Question] --> V{LLM Guard validate}
     V -->|reject| E[Error to UI]
-    V -->|ok| A[ReAct Agent]
+    V -->|ok| A[splunklib.ai Agent]
     A --> T1[get_user_profile]
     A --> T2[get_recent_transactions]
     A --> T3[get_device_history]
-    A --> T4[search_compliance]
-    T1 & T2 & T3 --> Splunk[SplunkTools]
-    T4 --> RAG[ComplianceRAG]
+    A --> T4[generate_spl]
+    A --> T5[run_splunk_query]
+    T1 & T2 & T3 & T4 & T5 --> Splunk[Splunk Enterprise]
     A --> M[OpenAI API]
-    M --> S{LLM Guard<br/>sanitize_output}
+    M --> S{LLM Guard sanitize}
     S --> R[Investigation Report]
 ```
 
-**Note:** The Investigation tab requires `OPENAI_API_KEY`. Dashboard, Data Output, and Audit tabs run without it.
+**Note:** The Investigation tab requires `OPENAI_API_KEY` and a running Splunk instance with credentials in `.env`.
 
 ---
 
@@ -144,38 +149,37 @@ flowchart LR
 
 | Step | Data | Transformation |
 |------|------|----------------|
-| 1 | Raw user ID in chat | Validated, never sent to model if PII pattern detected |
-| 2 | Query to Splunk tool | `Anonymizer.pseudonymize()` → irreversible token |
-| 3 | Mock index lookup | Pandas filter on `users_df` / `transactions_df` / `devices_df` |
-| 4 | Result | SHA256 chained into `.audit_chain.json` |
-| 5 | Response to UI | Columns removed per RBAC role (analyst / auditor / admin) |
-| 6 | Export (Data Output tab) | CSV manifest with visible fields only |
-| 7 | React frontend | Reads `frontend/mock/transactions.json`; client-side RBAC demo |
+| 1 | Sidebar: Load & Index to Splunk | `generate.py` → `splunk_ingest.py` → Splunk `main` index |
+| 2 | User chat input | `LLMGuard.validate_input()` |
+| 3 | Agent tool calls | SPL against real Splunk indexes (not in-memory mock) |
+| 4 | Results | Optional audit entries; RBAC applies to dashboard/export tabs |
+| 5 | Agent report | `LLMGuard.sanitize_output()` → UI with reasoning steps |
+| 6 | React frontend (optional) | Reads `frontend/mock/transactions.json` for demo dashboard |
 
 ---
 
 ## Repository Layout (runtime)
 
 ```
-app/streamlit_app.py     → Entry point (auth, tabs, orchestration)
-core/splunk_tools.py     → Splunk-shaped API + audit + RBAC
-core/agent.py            → LangChain agent (optional)
-core/rag_tools.py        → Regulation retrieval
-core/audit_trail.py      → Tamper-evident log
-security/*               → Auth, RBAC, anonymizer, LLM guard
-ui/*                     → Dashboards, auth panel, data export
-data/generate.py         → Synthetic dataset builder
-data/compliance_laws/    → Example regulation text corpus
-frontend/                → Optional React compliance dashboard
+app/streamlit_app.py              → Entry point (auth, tabs, Splunk AI investigation)
+core/splunk_ai_agent.py           → splunklib.ai Agent wrapper
+core/splunk_mcp_client.py         → Splunk MCP Server HTTP client
+core/splunk_connection.py         → Splunk SDK connection
+data/splunk_ingest.py             → Index synthetic data to Splunk
+splunk_app/finguard_copilot/      → Local MCP tools for splunklib.ai
+security/*                        → Auth, RBAC, anonymizer, LLM guard
+ui/*                              → Dashboards, auth panel, data export
 ```
 
 ---
 
-## Deployment Modes
+## Deployment
 
-| Mode | Splunk | OpenAI | ChromaDB |
-|------|--------|--------|----------|
-| **Demo (default)** | Mock in-memory | Optional | Keyword fallback |
-| **Production** | Splunk SDK + SPL | Required | Chroma or enterprise vector DB |
+| Component | Required for Investigation | Notes |
+|-----------|---------------------------|-------|
+| Splunk Enterprise | Yes | Port 8089, credentials in `.env` |
+| Splunk MCP Server app | Recommended | Enables remote `splunk_run_query`; local tools work without it |
+| OpenAI API key | Yes | Powers `splunklib.ai` LLM backend |
+| ChromaDB / LangChain | No | Legacy optional path in `core/agent.py` |
 
-See [README.md](README.md) for setup commands.
+See [README.md](README.md) and [scripts/INSTALL_SPLUNK_MCP.md](scripts/INSTALL_SPLUNK_MCP.md) for setup.

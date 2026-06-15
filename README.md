@@ -2,7 +2,7 @@
 
 AI-powered compliance investigation for suspicious transactions — **Security Track, Splunk Agentic Ops Hackathon**.
 
-Reduce manual review from minutes to seconds with identity-verified RBAC, tamper-proof audit trails, Splunk-shaped data tools, and an optional LangChain investigation agent.
+Reduce manual review from minutes to seconds with identity-verified RBAC, tamper-proof audit trails, and **Splunk AI** (`splunklib.ai.Agent`) investigation against real indexed Splunk data.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -17,7 +17,8 @@ Reduce manual review from minutes to seconds with identity-verified RBAC, tamper
 | README with setup & run | ✅ | This file |
 | Dependencies & example config | ✅ | `requirements.txt`, `requirements-minimal.txt`, [.env.example](.env.example) |
 | Example datasets | ✅ | [data/compliance_laws/](data/compliance_laws/), [frontend/mock/](frontend/mock/), generator in [data/generate.py](data/generate.py) |
-| Architecture diagram (root) | ✅ | [architecture.png](architecture.png), [architecture.svg](architecture.svg), [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Architecture diagram (root) | ✅ | [architecture_diagram.md](architecture_diagram.md), [architecture_diagram.png](architecture_diagram.png), [architecture.png](architecture.png) |
+| Demo video (<3 min) | ⬜ | See [SUBMISSION.md](SUBMISSION.md) for script & Devpost link |
 
 **Architecture covers:** Splunk AI (`splunklib.ai` + MCP Server), real indexed Splunk data, and end-to-end data flow.
 
@@ -27,7 +28,7 @@ Reduce manual review from minutes to seconds with identity-verified RBAC, tamper
 
 ![FinGuard Architecture](architecture.png)
 
-Also: [architecture.svg](architecture.svg) · [architecture_diagram.md](architecture_diagram.md)
+Also: [architecture_diagram.png](architecture_diagram.png) · [architecture.svg](architecture.svg) · [architecture_diagram.md](architecture_diagram.md)
 
 Detailed diagrams (Mermaid sequence & component views): **[ARCHITECTURE.md](ARCHITECTURE.md)**
 
@@ -45,8 +46,9 @@ Detailed diagrams (Mermaid sequence & component views): **[ARCHITECTURE.md](ARCH
 ### Prerequisites
 
 - **Python 3.10+** (3.12 recommended)
+- **Splunk Enterprise** (management API port **8089**) — required for Investigation tab
+- **OpenAI API key** — required for Splunk AI agent (`splunklib.ai`)
 - **Node.js 18+** (optional, for React dashboard only)
-- **OpenAI API key** (optional — only required for the **Investigation** tab)
 
 ### 1. Clone & install (Streamlit app)
 
@@ -74,8 +76,10 @@ pip install -r requirements-minimal.txt
 
 ```bash
 cp .env.example .env
-# Edit .env — set OPENAI_API_KEY only if using Investigation tab
+# Edit .env — set SPLUNK_* credentials and OPENAI_API_KEY
 ```
+
+Install Splunk MCP Server (recommended): [scripts/INSTALL_SPLUNK_MCP.md](scripts/INSTALL_SPLUNK_MCP.md).
 
 ### 3. Run Streamlit (primary app)
 
@@ -116,15 +120,20 @@ FinGuard-Copilot/
 ├── LICENSE                      # MIT
 ├── README.md                    # This file
 ├── ARCHITECTURE.md              # Splunk / AI / data-flow documentation
-├── architecture.svg             # Root architecture diagram (required asset)
+├── SUBMISSION.md                # Hackathon checklist & demo video script
+├── architecture_diagram.png     # Root architecture diagram (hackathon asset)
+├── architecture.svg             # Vector architecture diagram
 ├── requirements.txt             # Full Python dependencies
 ├── requirements-minimal.txt     # Dashboard-only (no Chroma/LangChain)
 ├── .env.example                 # Example configuration
 ├── app/
 │   └── streamlit_app.py         # Main entry: auth, tabs, orchestration
 ├── core/
-│   ├── agent.py                 # LangChain ReAct investigation agent
-│   ├── splunk_tools.py          # Splunk-shaped tools + audit + RBAC
+│   ├── splunk_ai_agent.py       # splunklib.ai investigation agent (primary)
+│   ├── splunk_mcp_client.py     # Splunk MCP Server HTTP client
+│   ├── splunk_connection.py     # Splunk SDK connection
+│   ├── splunk_tools.py          # Legacy mock tools + audit + RBAC
+│   ├── agent.py                 # Legacy LangChain agent (optional)
 │   ├── rag_tools.py             # Compliance RAG (Chroma or keyword fallback)
 │   └── audit_trail.py           # SHA256 hash-chain audit log
 ├── security/
@@ -158,9 +167,9 @@ FinGuard-Copilot/
 |---------|---------|
 | `streamlit` | Web UI |
 | `pandas`, `numpy`, `plotly` | Data & charts |
-| `langchain`, `langchain-openai`, `openai` | Investigation agent |
-| `chromadb` | Vector RAG (optional on Windows) |
-| `splunk-sdk` | Production Splunk connectivity |
+| `langchain`, `langchain-openai`, `openai` | Legacy agent + Splunk AI LLM backend |
+| `splunk-sdk` | Splunk connectivity + `splunklib.ai` |
+| `mcp`, `httpx` | Splunk MCP Server client |
 | `python-dotenv` | Environment configuration |
 | `pydantic` | Data validation |
 
@@ -216,7 +225,7 @@ LOG_LEVEL=INFO
 - **Identity verification** — no arbitrary role switching without employee ID + passcode
 - **Dashboard** — risk metrics, fund-flow network, timeline
 - **Data Output** — RBAC matrix, filtered tables, CSV export + manifest
-- **Investigation** — LangChain agent with Splunk tools + compliance RAG (needs OpenAI key)
+- **Investigation** — **Splunk AI agent** (`splunklib.ai`) with real Splunk queries + `generate_spl`
 - **Audit** — tamper-evident hash-chain status
 
 ### Security
@@ -250,7 +259,7 @@ This project uses **Splunk AI capabilities at runtime**:
 
 - `splunklib.ai.Agent` — Splunk Python SDK 3.0 agentic investigation loop
 - Splunk MCP Server — remote tools (`splunk_run_query`, `splunk_get_info`, …)
-- Local MCP tools — `splunk_app/finguard_copilot/bin/tools.py`
+- Local MCP tools — `generate_spl`, `run_splunk_query`, profile/txn/device queries in `tools.py`
 - Real indexed data — `data/splunk_ingest.py` writes to Splunk `main` index
 
 Configure `.env` (management API port **8089**, not web UI port 8000):
@@ -283,5 +292,7 @@ Copyright (c) 2026 FinGuard Compliance Copilot Contributors
 **Track:** Security · **Theme:** AI-powered compliance with financial-grade controls
 
 **Highlights:** Splunk AI (`splunklib.ai` + MCP) · real Splunk indexed data · verified RBAC · audit hash chain · 10-second review workflow
+
+Full submission guide: **[SUBMISSION.md](SUBMISSION.md)**
 
 *Synthetic data only — no real customer information.*

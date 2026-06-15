@@ -10,6 +10,7 @@ from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "architecture.png"
+OUTPUT_DIAGRAM = ROOT / "architecture_diagram.png"
 
 # Component layout: (x, y, width, height, label, color)
 COMPONENTS = [
@@ -99,7 +100,9 @@ def main():
 
     fig.tight_layout()
     fig.savefig(OUTPUT, dpi=150, bbox_inches="tight", facecolor="white")
+    fig.savefig(OUTPUT_DIAGRAM, dpi=150, bbox_inches="tight", facecolor="white")
     print(f"Architecture diagram saved to {OUTPUT}")
+    print(f"Hackathon asset saved to {OUTPUT_DIAGRAM}")
 
 
 if __name__ == "__main__":

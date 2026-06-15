@@ -330,7 +330,7 @@ def render_investigation_interface():
     meta = RBAC.get_role_metadata(st.session_state.role)
     st.caption(
         f"Powered by **splunklib.ai Agent** · Queries run as **{meta['label']}** "
-        f"({st.session_state.employee_id}). Splunk MCP `generate_spl` used when MCP Server is installed."
+        f"({st.session_state.employee_id}). Uses local `generate_spl` + Splunk MCP when installed."
     )
 
     if len(st.session_state.messages) == 0:

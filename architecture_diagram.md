@@ -11,7 +11,8 @@ FinGuard Compliance Copilot is a Streamlit investigation assistant that integrat
 | Component | Splunk AI Capability | Role |
 |-----------|---------------------|------|
 | `splunklib.ai.Agent` | Splunk Python SDK 3.0 AI | Agentic investigation loop |
-| Splunk MCP Server | `generate_spl` (AI Assistant) | Natural language → SPL |
+| Splunk MCP Server | `generate_spl` (AI Assistant) when enabled | Natural language → SPL |
+| Local MCP tools (`tools.py`) | `generate_spl` (OpenAI/template fallback) | NL → SPL without MCP Assistant |
 | Splunk MCP Server | `run_splunk_query` | Execute SPL on real indexed data |
 | Local MCP tools (`tools.py`) | Splunk SDK AI local tools | User/txn/device queries |
 | Splunk Enterprise | Data platform | Indexes compliance events |
