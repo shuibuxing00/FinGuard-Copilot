@@ -140,7 +140,7 @@ def render_sidebar():
         disabled=load_disabled,
         help="Generate synthetic data and index into Splunk for real SPL queries",
     ):
-        with st.spinner("Generating data and indexing to Splunk..."):
+        with st.spinner("Generating data and indexing to Splunk (about 1–2 min)..."):
             try:
                 users_df, txns_df, devices_df = generate_synthetic_data(
                     n_users=10,
@@ -155,16 +155,38 @@ def render_sidebar():
                 st.session_state.devices_df = devices_df
                 st.session_state.data_loaded = True
 
-                ingest_result = ingest_from_session(users_df, txns_df, devices_df)
-                st.session_state.splunk_ingest_result = ingest_result
-
                 try:
                     service = connect_splunk()
                     st.session_state.splunk_connected = True
                     st.session_state.splunk_status = get_splunk_status(service)
                 except Exception as conn_err:
                     st.session_state.splunk_connected = False
-                    st.sidebar.warning(f"Splunk connection issue: {conn_err}")
+                    st.sidebar.error(f"Splunk connection failed: {conn_err}")
+                    raise
+
+                total_events = len(users_df) + len(txns_df) + len(devices_df)
+                progress = st.sidebar.progress(
+                    0.0,
+                    text=f"Indexing 0/{total_events} events to Splunk...",
+                )
+
+                def _ingest_progress(done: int, total: int) -> None:
+                    progress.progress(
+                        done / total,
+                        text=f"Indexing {done}/{total} events to Splunk...",
+                    )
+
+                try:
+                    ingest_result = ingest_from_session(
+                        users_df,
+                        txns_df,
+                        devices_df,
+                        progress_callback=_ingest_progress,
+                    )
+                finally:
+                    progress.empty()
+
+                st.session_state.splunk_ingest_result = ingest_result
 
                 st.session_state.audit_trail.add_entry(
                     action="load_and_index_splunk",
