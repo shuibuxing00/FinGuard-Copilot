@@ -15,6 +15,7 @@
 | **Paper (editable)** | ✅ | [`docs/MOONSHOT_PAPER.md`](docs/MOONSHOT_PAPER.md) — Section 5 aligned with code |
 | **Vision Presentation** | ✅ | [`docs/MOONSHOT_PRESENTATION.md`](docs/MOONSHOT_PRESENTATION.md) → export PDF |
 | **Demo Script** | ✅ | [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) |
+| **Problem & Solution** | ✅ | [`docs/PROBLEM_AND_SOLUTION.md`](docs/PROBLEM_AND_SOLUTION.md) |
 | **Paper Figures** | ✅ | [`docs/figures/`](docs/figures/) — run `python scripts/generate_paper_figures.py` |
 
 ---
@@ -122,5 +123,6 @@ npx @marp-team/marp-cli docs/MOONSHOT_PRESENTATION.md -o docs/MOONSHOT_PRESENTAT
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Splunk / AI data-flow diagrams |
 | [`SUBMISSION.md`](SUBMISSION.md) | Splunk Agentic Ops Hackathon submission |
 | [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | Live demo script |
+| [`docs/PROBLEM_AND_SOLUTION.md`](docs/PROBLEM_AND_SOLUTION.md) | Clear problem & solution explanation |
 
 *Synthetic data only — no real customer information.*
