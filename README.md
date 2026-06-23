@@ -1,5 +1,7 @@
 # FinGuard Compliance Copilot
 
+> **Moonshot submission:** FinGuard is not an incremental AML dashboard — it is a **reference architecture for verifiable, privacy-preserving compliance agents**. See **[MOONSHOT.md](MOONSHOT.md)** for paper, presentation, and demo script.
+
 AI-powered compliance investigation for suspicious transactions — **Security Track, Splunk Agentic Ops Hackathon**.
 
 Reduce manual review from minutes to seconds with identity-verified RBAC, tamper-proof audit trails, and **Splunk AI** (`splunklib.ai.Agent`) investigation against real indexed Splunk data.
@@ -12,6 +14,8 @@ Reduce manual review from minutes to seconds with identity-verified RBAC, tamper
 
 | Requirement | Status | Location |
 |-------------|--------|----------|
+| Moonshot paper & presentation | ✅ | [MOONSHOT.md](MOONSHOT.md), [FinGuard_Beyond_Rule_Engines.pdf](FinGuard_Beyond_Rule_Engines.pdf) |
+| Demo Mode (no Splunk) | ✅ | `FINGUARD_DEMO_MODE=1` + sidebar **Load Synthetic Data** |
 | Open source license | ✅ | [LICENSE](LICENSE) (MIT) |
 | All source code & assets | ✅ | `app/`, `core/`, `security/`, `ui/`, `frontend/`, `data/` |
 | README with setup & run | ✅ | This file |
@@ -86,6 +90,18 @@ Install Splunk MCP Server (recommended): [scripts/INSTALL_SPLUNK_MCP.md](scripts
 
 ### 3. Run Streamlit (primary app)
 
+**Moonshot / offline demo (no Splunk):**
+
+```bash
+# Windows PowerShell
+$env:FINGUARD_DEMO_MODE="1"
+streamlit run app/streamlit_app.py
+```
+
+Sign in → enable **Demo Mode** → **Load Synthetic Data** → **Investigation** tab.
+
+**Full path (Splunk AI):**
+
 ```bash
 streamlit run app/streamlit_app.py
 ```
@@ -121,6 +137,12 @@ Open **http://localhost:5173** — stats cards, RBAC table, AML rules, fund-flow
 ```
 FinGuard-Copilot/
 ├── LICENSE                      # MIT
+├── MOONSHOT.md                  # Moonshot submission guide (paper, presentation, demo)
+├── docs/
+│   ├── MOONSHOT_PAPER.md        # Editable paper (Section 5 aligned with code)
+│   ├── MOONSHOT_PRESENTATION.md # Vision presentation (Marp → PDF)
+│   ├── DEMO_SCRIPT.md           # 5-minute live demo script
+│   └── figures/                 # Paper figures (generate_paper_figures.py)
 ├── README.md                    # This file
 ├── ARCHITECTURE.md              # Splunk / AI / data-flow documentation
 ├── SUBMISSION.md                # Hackathon submission & verification guide

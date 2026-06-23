@@ -33,7 +33,8 @@ class SplunkTools:
         audit_trail: AuditTrail,
         anonymizer: Anonymizer,
         rbac: RBAC,
-        role: str
+        role: str,
+        force_mock: bool = False,
     ):
         """
         Initialize Splunk tools with security context.
@@ -43,6 +44,7 @@ class SplunkTools:
             anonymizer: Anonymizer for pseudonymization
             rbac: RBAC instance for access control
             role: Current user role
+            force_mock: If True, use in-memory mock data only (Demo Mode)
         """
         self.audit_trail = audit_trail
         self.anonymizer = anonymizer
@@ -52,6 +54,8 @@ class SplunkTools:
         self.splunk_service = None
         self.splunk_connected = False
         self.splunk_config = self._load_splunk_config()
+        if force_mock:
+            self.splunk_config["use_real"] = False
         self.user_search_template = self.splunk_config["user_search"]
         self.txn_search_template = self.splunk_config["txn_search"]
         self.device_search_template = self.splunk_config["device_search"]
@@ -62,6 +66,25 @@ class SplunkTools:
         self.users_df: Optional[pd.DataFrame] = None
         self.transactions_df: Optional[pd.DataFrame] = None
         self.devices_df: Optional[pd.DataFrame] = None
+
+    def _resolve_user_key(self, user_id: str) -> str:
+        """Map display ID (USER_00001) or raw ID to stored user_id (pseudonym)."""
+        if not user_id:
+            return user_id
+        if self.users_df is not None:
+            if "user_id" in self.users_df.columns:
+                direct = self.users_df[self.users_df["user_id"] == user_id]
+                if not direct.empty:
+                    return user_id
+            if "display_user_id" in self.users_df.columns:
+                match = self.users_df[
+                    self.users_df["display_user_id"].str.upper() == user_id.upper()
+                ]
+                if not match.empty:
+                    return match.iloc[0]["user_id"]
+        if user_id.upper().startswith("USER_"):
+            return self.anonymizer.pseudonymize(user_id)
+        return user_id
     
     def _load_splunk_config(self) -> Dict[str, Any]:
         """
@@ -254,8 +277,7 @@ class SplunkTools:
             elif self.users_df is None:
                 return {"error": "No mock data loaded"}
             else:
-                # Query
-                pseudonym = self.anonymizer.pseudonymize(user_id)
+                pseudonym = self._resolve_user_key(user_id)
                 user_rows = self.users_df[self.users_df["user_id"] == pseudonym]
                 if user_rows.empty:
                     result = {"error": f"User {pseudonym} not found"}
@@ -297,12 +319,10 @@ class SplunkTools:
             elif self.transactions_df is None:
                 return []
             else:
-                # Query
-                pseudonym = self.anonymizer.pseudonymize(user_id)
+                pseudonym = self._resolve_user_key(user_id)
                 user_txns = self.transactions_df[
                     self.transactions_df["user_id"] == pseudonym
                 ]
-                # Filter by time
                 if "timestamp" in user_txns.columns:
                     user_txns = user_txns.sort_values("timestamp", ascending=False)
                     user_txns = user_txns.head(20)
@@ -338,8 +358,7 @@ class SplunkTools:
             elif self.devices_df is None:
                 return []
             else:
-                # Query
-                pseudonym = self.anonymizer.pseudonymize(user_id)
+                pseudonym = self._resolve_user_key(user_id)
                 user_devices = self.devices_df[
                     self.devices_df["user_id"] == pseudonym
                 ]
